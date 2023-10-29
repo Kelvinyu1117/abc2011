@@ -11,11 +11,9 @@ template <typename Traits> struct StrategyFactory {
   using ExecutionContext = Traits::ExecutionClient;
 
   template <typename TConfig>
-  static auto
-  make_strategy(std::string strategy_name, MarketDataContext &marketDataContext,
-                ExecutionContext &executionContext, TConfig config) {
+  static auto make_strategy(std::string strategy_name, TConfig &&config) {
     if (strategy_name == "ema")
-      return EMAStrategy<Traits>(marketDataContext, executionContext, config);
+      return EMAStrategy<Traits>(std::forward<TConfig>(config));
     else
       throw std::runtime_error("Cannot instantiate corresponding strategy.");
   }

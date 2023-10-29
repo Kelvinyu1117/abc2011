@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 namespace strat {
 
 struct EmaStrategyConfig {};
@@ -12,24 +13,17 @@ struct EmaStrategyConfig {};
 template <typename Traits> class EMAStrategy {
   using Trade = Traits::Trade;
   using PriceBook = Traits::PriceBook;
-  using MarketDataContext = Traits::MDContext;
   using OrderBook = Traits::OrderBook;
   using OrderInfo = Traits::OrderInfo;
   using ExecutionInfo = Traits::ExecutionInfo;
-  using ExecutionContext = Traits::ExecutionClient;
+  using ExecutionContext = Traits::ExecutionContext;
 
 public:
-  explicit EMAStrategy(MarketDataContext &market_data_context,
-                       ExecutionContext &executionClient,
-                       EmaStrategyConfig &config)
-      : market_data_context{this}, {}
+  explicit EMAStrategy(EmaStrategyConfig &config) {}
 
-  void init() {
-    market_data_context.init();
-    execution_context.init();
-  }
+  void init() {}
 
-  void start() { market_data_context.start(); }
+  void start() {}
 
   // market data callback
   void on_trade(const Trade &trade) override {}
@@ -55,7 +49,6 @@ public:
   }
 
 private:
-  MarketDataContext &market_data_context;
   ExecutionContext &execution_context;
 };
 } // namespace strat
