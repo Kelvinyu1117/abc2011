@@ -26,7 +26,12 @@ public:
       : mode(LaunchMode::SIMULATION), sim_config(std::move(config)) {}
 
   void init() { std::cout << "AppEngine::init()\n"; }
-  void start() {}
+  void start() {
+    /**
+     * launch all traders
+     *
+     */
+  }
 
 private:
   LaunchMode mode;

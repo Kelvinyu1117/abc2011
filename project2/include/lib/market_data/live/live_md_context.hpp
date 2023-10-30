@@ -13,8 +13,9 @@
 namespace market_data {
 /**
  * @brief This is a actual live market data client, expected to join the
- * multicast group (UDP) or connect to the market data server (TCP) and parse
- * the market data, and populate the market data to the upper layer
+ * multicast group (UDP) or connect to the market data server (TCP) or read the
+ * data directly from shared memory (fastest), after that, parse the market
+ * data, and populate the market data to the upper layer
  *
  * @tparam Traits
  */

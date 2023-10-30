@@ -33,19 +33,19 @@ public:
   //   void on_send_order(OrderBook &order, const OrderInfo &order_info)
   //   override {}
 
-  void on_signal(Signal sig) {
-    switch (sig) {
-    case Signal::OPEN_LONG:
-      break;
-    case Signal::CLOSE_LONG:
-      break;
-    case Signal::OPEN_SHORT:
-      break;
-    case Signal::CLOSE_SHORT:
-      break;
-    default:
-      break;
-    };
+  void on_signal(Signal sig, PriceBook *last_book, Trade *last_trade) {
+    // switch (sig) {
+    // case Signal::OPEN_LONG:
+    //   break;
+    // case Signal::CLOSE_LONG:
+    //   break;
+    // case Signal::OPEN_SHORT:
+    //   break;
+    // case Signal::CLOSE_SHORT:
+    //   break;
+    // default:
+    //   break;
+    // };
   }
 
   // private:
