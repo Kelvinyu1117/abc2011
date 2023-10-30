@@ -1,6 +1,8 @@
 #pragma once
 
 #include "lib/app/app_config.hpp"
+#include "lib/market_data/hist/hist_md_context.hpp"
+#include "lib/market_data/live/live_md_context.hpp"
 #include "lib/strategy/trader.hpp"
 #include "lib/traits/production_traits.hpp"
 
@@ -16,6 +18,9 @@ template <typename AppTraits> class AppEngine {
   using DataTraits = typename AppTraits::DataTraits;
   using ProductionTraits = typename AppTraits::ProductionTraits;
   using Simulation = typename AppTraits::SimulationTraits;
+
+  using HistoricalMDContext = market_data::HistoricalMDContext<DataTraits>;
+  using LiveMDContext = market_data::LiveMDContext<DataTraits>;
   using Trader = strategy::Trader<typename AppTraits::MarketDataTraits>;
 
 public:
@@ -28,7 +33,8 @@ public:
   void init() { std::cout << "AppEngine::init()\n"; }
   void start() {
     /**
-     * launch all traders
+     * launch all traders, in term of multiple threads, target is to archive
+     * thread per core architecture, and minimize the data sharing across thread
      *
      */
   }

@@ -1,9 +1,10 @@
 #pragma once
 
 namespace strategy {
-enum class Signal { OPEN_LONG, OPEN_SHORT, CLOSE_LONG, CLOSE_SHORT };
+enum class Signal { LONG, SHORT, IDLE };
 
 class ISignalListener {
+public:
   virtual void on_signal(Signal signal) = 0;
 };
 } // namespace strategy

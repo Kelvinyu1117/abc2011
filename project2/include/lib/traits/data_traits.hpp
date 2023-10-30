@@ -1,6 +1,8 @@
 #pragma once
 
 #include "lib/symbology/instrument.hpp"
+#include "lib/utils/side.h"
+#include <map>
 #include <unordered_map>
 
 /**
@@ -12,8 +14,13 @@ struct DataTraits {
   using Size = uint64_t;
   using String =
       std::string; // std::string is slow, can be replaced by something better
-  using Instrument = symbology::Instrument<DataTraits>;
 
-  template <typename K, typename V, typename Comparator>
-  using UnorderedMap = std::unordered_map<K, V, Comparator>;
+  using NanoTimestamp = uint64_t; // it shouldn't be navie u64, can be replaced
+                                  // by something better
+  using Instrument = symbology::Instrument<String>;
+  using Side = utils::Side;
+
+  template <typename K, typename V, typename Comparator = std::less<>>
+  using Map = std::map<K, V, Comparator>; // std::map is slow, can
+                                          // be replaced by something better
 };

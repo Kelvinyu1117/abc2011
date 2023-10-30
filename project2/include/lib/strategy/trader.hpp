@@ -1,55 +1,37 @@
 #pragma once
 
+#include "lib/execution/execution_report.hpp"
+#include "lib/market_data/md_utils.hpp"
 #include "lib/strategy/signal.hpp"
+#include "lib/utils/order.hpp"
+#include "lib/utils/orderbook.hpp"
 #include <thread>
 namespace strategy {
 
-template <typename MarketDataTraits> class Trader {
+template <typename DataTraits> class Trader {
 
-  using Trade = MarketDataTraits::Trade;
-  using PriceBook = MarketDataTraits::PriceBook;
-  //   using OrderBook = Traits::OrderBook;
-  //   using OrderInfo = Traits::OrderInfo;
-  //   using ExecutionInfo = Traits::ExecutionInfo;
+  using Trade = market_data::Trade<DataTraits>;
+  using OrderBook = utils::OrderBook<DataTraits>;
+  using OrderInfo = utils::Order<DataTraits>;
+  using ExecutionInfo = execution::ExecutionReport;
 
 public:
-  void run() {
-    std::jthread([this]() {});
-  }
+  void run() {}
 
-  // execution/matching engine callback
-  //   void on_order_add(OrderBook &order, const OrderInfo &order_info) override
-  //   {}
+  // market data event
+  void on_order_add(OrderBook &order, const OrderInfo &order_info) override {}
 
-  //   void on_order_cancel(OrderBook &orderbook,
-  //                        const OrderInfo &order_info) override {}
+  void on_order_cancel(OrderBook &orderbook,
+                       const OrderInfo &order_info) override {}
 
-  //   void on_order_execution(OrderBook &orderbook, const OrderInfo
-  //   &order_info,
-  //                           const ExecutionInfo &executionInfo) override {}
+  // execution event
+  void on_order_execution(OrderBook &orderbook, const OrderInfo &order_info,
+                          const ExecutionInfo &executionInfo) override {}
 
-  //   // not very sure, assume it is the callback when the matching engine
-  //   // receive the order
-  //   void on_send_order(OrderBook &order, const OrderInfo &order_info)
-  //   override {}
+  // not very sure, assume it is the callback when the matching engine
+  // receive the order
+  void on_send_order(OrderBook &order, const OrderInfo &order_info) {}
 
-  void on_signal(Signal sig, PriceBook *last_book, Trade *last_trade) {
-    // switch (sig) {
-    // case Signal::OPEN_LONG:
-    //   break;
-    // case Signal::CLOSE_LONG:
-    //   break;
-    // case Signal::OPEN_SHORT:
-    //   break;
-    // case Signal::CLOSE_SHORT:
-    //   break;
-    // default:
-    //   break;
-    // };
-  }
-
-  // private:
-  //   MarketDataContextKind md_context;
-  //   StrategyContextKind strategy;
+  void on_signal(Signal sig) {}
 };
 } // namespace strategy

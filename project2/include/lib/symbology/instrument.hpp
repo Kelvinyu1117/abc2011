@@ -10,11 +10,9 @@ enum class InstrumentType : uint32_t {
   OPTION,
 };
 
-template <typename Traits> class Instrument {
-  using String = Traits::String;
-
+template <typename TString> class Instrument {
   InstrumentType type;
   Exchange exchange;
-  String name; 
+  TString name;
 };
 } // namespace symbology

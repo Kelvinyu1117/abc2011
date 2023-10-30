@@ -1,40 +1,33 @@
 #pragma once
+#include "lib/utils/pricesize.hpp"
 #include <array>
 #include <cstdint>
 #include <limits>
 #include <optional>
 namespace market_data {
-
-template <typename Traits> struct PriceSize {
-  using Price = Traits::Price;
-  using Size = Traits::Size;
-
-  Price px;
-  Size sz;
-  bool is_valid{false};
-};
-
-template <typename Traits> struct PriceBook {
-  using Instrument = Traits::Instrument;
+template <typename DataTraits> struct PriceBook {
+  using NanoTimestamp = DataTraits::NanoTimestamp;
+  using Instrument = DataTraits::Instrument;
 
   constexpr static size_t DEFAULT_BOOK_LEVEL = 20;
 
-  Instrument instrument;
+  NanoTimestamp time;
   uint64_t bid_levels;
   uint64_t ask_levels;
-  PriceSize<Traits> bids[DEFAULT_BOOK_LEVEL];
-  PriceSize<Traits> asks[DEFAULT_BOOK_LEVEL];
+  Instrument instrument;
+  utils::PriceSize<DataTraits> bids[DEFAULT_BOOK_LEVEL];
+  utils::PriceSize<DataTraits> asks[DEFAULT_BOOK_LEVEL];
 };
 
-template <typename Traits> struct Trade {
-  using Instrument = Traits::Instrument;
-  using Side = Traits::Side;
+template <typename DataTraits> struct Trade {
+  using NanoTimestamp = DataTraits::NanoTimestamp;
+  using Instrument = DataTraits::Instrument;
+  using Side = DataTraits::Side;
 
+  NanoTimestamp time;
   Instrument instrument;
-  PriceSize<Traits> pxsz;
+  utils::PriceSize<DataTraits> pxsz;
   std::optional<Side> side; // some market data may not have side information
 };
-
-enum class MDSource : int { DATABASE, FILE, LIVE };
 
 } // namespace market_data

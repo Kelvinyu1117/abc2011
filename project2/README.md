@@ -6,9 +6,13 @@
 * CMake 3.21
 * Clang/Clang++ 16
   
-## Build
+## Build and execution
 
 ```bash
 cmake -S . -B build
-cmake -B build
+cd build
+make
+./trade-simulator sim
 ```
+
+## Design

@@ -1,8 +1,8 @@
 #pragma once
 #include "lib/market_data/live/live_md_config.hpp"
-#include "lib/market_data/md_event_handler.hpp"
-#include "lib/market_data/md_utils.hpp"
+#include "lib/market_data/md_event_listener.hpp"
 #include "lib/utils/helpers.hpp"
+#include "lib/utils/order.hpp"
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -19,24 +19,26 @@ namespace market_data {
  *
  * @tparam Traits
  */
-template <typename Traits> class LiveMDContext {
-  using IMDEventListener = IMDEventListener<Traits>;
-  using Trade = Traits::Trade;
-  using PriceBook = Traits::PriceBook;
-  using MDEvent = std::variant<Trade, PriceBook>;
+template <typename DataTraits> class LiveMDContext {
+  using Trade = Trade<DataTraits>;
+  using PriceBook = PriceBook<DataTraits>;
+  using IL3EventListener = IL3EventListener<DataTraits>;
+  using Order = utils::Order<DataTraits>;
+  using L3MDEvent = std::variant<Trade, Order>;
 
 public:
   explicit LiveMDContext(LiveMDContextConfig config)
       : config(std::move(config)) {}
 
-  void add_client(const std::shared_ptr<IMDEventListener> &client) {
-    clients.emplace_back(client);
+  void add_client(const std::shared_ptr<IL3EventListener> &client) {
+    l3_clients.emplace_back(client);
   }
 
   void init() {}
 
   void start() {
     if (config.data_source == MDSource::LIVE) {
+      auto &clients = l3_clients;
       while (auto md_event = read_event_from_network()) {
         std::visit(
             utils::overloaded{
@@ -45,9 +47,14 @@ public:
                     client->on_trade(trade);
                   });
                 },
-                [this](const PriceBook &book) {
+                [this](const Order &order) {
                   std::ranges::for_each(clients, [&, this](const auto &client) {
-                    client->on_book(book);
+                    switch (order.action) {
+                    case utils::OrderAction::ADD:
+                      client->on_order_add(order);
+                    case utils::OrderAction::CANCEL:
+                      client->on_order_cancel(order);
+                    }
                   });
                 }},
             *md_event);
@@ -59,13 +66,13 @@ public:
   }
 
 private:
-  std::optional<MDEvent> read_event_from_network() {
+  std::optional<L3MDEvent> read_event_from_network() {
     // assume reading the data from network
     return Trade{};
   }
 
 private:
-  std::vector<std::shared_ptr<IMDEventListener>> clients;
+  std::vector<std::shared_ptr<IL3EventListener>> l3_clients;
   LiveMDContextConfig config;
   // expect some member variables for network communication...
 };
