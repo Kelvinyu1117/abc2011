@@ -36,4 +36,5 @@ template <typename Traits> struct Trade {
 };
 
 enum class MDSource : int { DATABASE, FILE, LIVE };
+
 } // namespace market_data

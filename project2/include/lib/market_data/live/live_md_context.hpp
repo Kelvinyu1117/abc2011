@@ -59,12 +59,13 @@ public:
 
 private:
   std::optional<MDEvent> read_event_from_network() {
-    // assume reading the data from database/file
+    // assume reading the data from network
     return Trade{};
   }
 
 private:
   std::vector<std::shared_ptr<IMDEventListener>> clients;
   LiveMDContextConfig config;
+  // expect some member variables for network communication...
 };
 } // namespace market_data

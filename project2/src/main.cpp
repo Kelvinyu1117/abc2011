@@ -1,6 +1,7 @@
+#include "lib/app/launcher.hpp"
+#include "lib/traits/app_traits.hpp"
 #include <iostream>
 
-int main(int argc, char *argv[]) {
-  std::cout << "hello, world\n";
-  return 0;
-}
+using namespace app;
+using namespace traits;
+int main(int argc, char *argv[]) { return launch<AppTraits>(argc, argv); }

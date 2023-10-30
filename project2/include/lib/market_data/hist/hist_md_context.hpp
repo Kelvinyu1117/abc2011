@@ -63,7 +63,7 @@ public:
                          [this](const Trade &trade) {
                            std::ranges::for_each(clients,
                                                  [&, this](const auto &client) {
-                                                   client->on_trade(trade);
+
                                                  });
                          },
                          [this](const PriceBook &book) {

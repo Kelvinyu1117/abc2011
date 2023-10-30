@@ -4,15 +4,17 @@
 #include <string>
 namespace symbology {
 enum class InstrumentType : uint32_t {
-  STOCK,
+  SPOT,
   BOND,
   FUTURE,
   OPTION,
 };
 
-class Instrument {
+template <typename Traits> class Instrument {
+  using String = Traits::String;
+
   InstrumentType type;
   Exchange exchange;
-  std::string name; // std::string is slow, can be improved later
+  String name; 
 };
 } // namespace symbology
