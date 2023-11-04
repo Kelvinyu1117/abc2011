@@ -3,7 +3,7 @@
 #include "lib/utils/orderbook.hpp"
 namespace execution {
 
-template <typename DataTraits> class IExecutionEventHandler {
+template <typename DataTraits> class IExecutionEventListener {
   using OrderBook = utils::OrderBook<DataTraits>;
   using OrderInfo = utils::Order<DataTraits>;
   using ExecutionInfo = ExecutionReport;
