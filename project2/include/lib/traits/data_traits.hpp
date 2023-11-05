@@ -11,6 +11,7 @@
  */
 struct DataTraits {
   using Price = double; // use double for now, maybe should use integer type
+  using IntPrice = uint64_t;
   using Size = uint64_t;
   using String =
       std::string; // std::string is slow, can be replaced by something better

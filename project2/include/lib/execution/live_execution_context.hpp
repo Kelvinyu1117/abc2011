@@ -15,8 +15,8 @@ namespace execution {
 template <typename Traits> class LiveExecutionContext {
   using IExecutionEventListener = IExecutionEventListener<Traits>;
   using OrderID = Traits::OrderID;
-  using OrderInfo = utils::Order<DataTraits>;
-  using ExecutionInfo = ExecutionReport;
+  using OrderInfo = utils::Order<Traits>;
+  using ExecutionInfo = ExecutionReport<Traits>;
 
 public:
   void init() {}

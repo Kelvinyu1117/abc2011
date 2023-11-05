@@ -2,6 +2,7 @@
 
 #include "lib/traits/data_traits.hpp"
 #include "lib/utils/order.hpp"
+#include <cmath>
 #include <queue>
 namespace utils {
 
@@ -27,7 +28,8 @@ private:
 };
 
 template <typename DataTraits> class OrderBook {
-  using Price = DataTraits::IntPrice;
+  using Price = DataTraits::Price;
+  using IntPrice = DataTraits::IntPrice;
 
   using BidMap = DataTraits::template Map<Price, OrderQueue, std::greater<>>;
   using AskMap = DataTraits::template Map<Price, OrderQueue>;
@@ -39,17 +41,17 @@ public:
 
   void insert(const Order &order) {
     if (order.side == Side::BID) {
-      bids[order.getPrice()].push(order);
+      bids[to_int_px(order.pxsz.px)].push(order);
     } else {
-      asks[order.getPrice()].push(order);
+      asks[to_int_px(order.pxsz.px)].push(order);
     }
   }
 
   void insert(const Order &&order) {
     if (order.side == Side::BID) {
-      bids[order.mPrice].push(std::move(order));
+      bids[to_int_px(order.pxsz.px)].push(std::move(order));
     } else {
-      asks[order.mPrice].push(std::move(order));
+      asks[to_int_px(order.pxsz.px)].push(std::move(order));
     }
   }
 
@@ -88,6 +90,16 @@ public:
   AskSideIterator erase(const AskSideIterator &it);
 
 private:
+  // multiply the floating point px by a factor(10^3) to convert it to be a
+  // integral
+  constexpr IntPrice to_int_px(Price px) { return IntPrice(px * px_multipier); }
+
+  // convert back the IntPrice back to floating point price by divided by the
+  // same factor;
+  constexpr Price to_px(IntPrice px) { return Price(px / px_multipier); }
+
+private:
+  const double px_multipier = std::pow(10, 3);
   BidMap bids;
   AskMap asks;
 };
