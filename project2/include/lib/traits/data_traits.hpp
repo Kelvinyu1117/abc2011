@@ -2,6 +2,7 @@
 
 #include "lib/symbology/instrument.hpp"
 #include "lib/utils/side.h"
+#include <deque>
 #include <map>
 #include <unordered_map>
 
@@ -24,4 +25,5 @@ struct DataTraits {
   template <typename K, typename V, typename Comparator = std::less<>>
   using Map = std::map<K, V, Comparator>; // std::map is slow, can
                                           // be replaced by something better
+  template <typename T> using Queue = std::deque<T>;
 };

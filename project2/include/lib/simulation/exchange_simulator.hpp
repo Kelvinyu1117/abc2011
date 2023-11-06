@@ -250,9 +250,15 @@ private:
     }
   }
 
-  bool try_amend(NanoTimestamp event_time, OrderInfo &order_info) {}
+  bool try_amend(NanoTimestamp event_time, OrderInfo &order_info) {
+    // find the order, and remove from the queue, update the order and insert
+    // back the queue (lose the priority)
+  }
 
-  bool try_cancel(NanoTimestamp event_time, OrderInfo &order_info) {}
+  bool try_cancel(NanoTimestamp event_time, OrderInfo &order_info) {
+    // find and remove the order from the queue, assume the order must be in, in
+    // reality, it should throw out a cancel reject to the client side.
+  }
 
 private:
   std::unique_ptr<ExchangeSimulatorConfig> config;

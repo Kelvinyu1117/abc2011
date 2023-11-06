@@ -13,7 +13,7 @@ template <typename DataTraits> class Trader {
   using Trade = market_data::Trade<DataTraits>;
   using OrderBook = utils::OrderBook<DataTraits>;
   using OrderInfo = utils::Order<DataTraits>;
-  using ExecutionInfo = execution::ExecutionReport;
+  using ExecutionInfo = execution::ExecutionReport<DataTraits>;
 
 public:
   void run() {}
@@ -28,8 +28,6 @@ public:
   void on_order_execution(OrderBook &orderbook, const OrderInfo &order_info,
                           const ExecutionInfo &executionInfo) override {}
 
-  // not very sure, assume it is the callback when the matching engine
-  // receive the order
   void on_send_order(OrderBook &order, const OrderInfo &order_info) {}
 
   void on_signal(Signal sig) {}
