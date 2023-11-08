@@ -19,16 +19,28 @@ template <typename AppTraits> class AppEngine {
   using ProductionTraits = typename AppTraits::ProductionTraits;
   using Simulation = typename AppTraits::SimulationTraits;
 
-  using HistoricalMDContext = market_data::HistoricalMDContext<DataTraits>;
-  using LiveMDContext = market_data::LiveMDContext<DataTraits>;
-  using Trader = strategy::Trader<typename AppTraits::MarketDataTraits>;
+  struct ContextTraits {
+    using SimMDContext = market_data::HistoricalMDContext<DataTraits>;
+    using SimExecutionContext =
+        execution::SimulationExecutionContext<DataTraits>;
+    using LiveMDContext = market_data::LiveMDContext<DataTraits>;
+    using LiveExecutionContext = execution::LiveExecutionContext<DataTraits>;
+  };
+
+  using Trader =
+      strategy::Trader<typename AppTraits::MarketDataTraits, ContextTraits>;
 
 public:
   explicit AppEngine(std::unique_ptr<LiveAppConfig> config)
       : mode(LaunchMode::LIVE), live_config(std::move(config)) {}
 
   explicit AppEngine(std::unique_ptr<SimAppConfig> config)
-      : mode(LaunchMode::SIMULATION), sim_config(std::move(config)) {}
+      : mode(LaunchMode::SIMULATION), sim_config(std::move(config)) {
+
+    traders.push_back(std::make_unique(strategy::SimulationContext{
+        std::make_unique<ContextTraits::SimMDContext>(),
+        std::make_unique<ContextTraits::SimExecutionContext>()}));
+  }
 
   void init() { std::cout << "AppEngine::init()\n"; }
   void start() {
@@ -37,6 +49,8 @@ public:
      * thread per core architecture, and minimize the data sharing across thread
      *
      */
+
+    std::ranges::for_each(traders, [this](auto &trader) { trader->start(); });
   }
 
 private:
