@@ -22,20 +22,22 @@ namespace market_data {
  * @tparam Traits
  */
 template <typename DataTraits> class HistoricalMDContext {
+public:
   using Trade = Trade<DataTraits>;
   using PriceBook = PriceBook<DataTraits>;
   using IL3EventListener = IL3EventListener<DataTraits>;
   using Order = utils::Order<DataTraits>;
   using L3MDEvent = std::variant<Trade, Order>;
-  using LatencyModel = simulation::LatencyModel<DataTraits>;
+  using Config = HistMDContextConfig<DataTraits>;
 
-public:
-  explicit HistoricalMDContext(HistMDContextConfig config)
-      : config(std::move(config)) {}
+  explicit HistoricalMDContext(Config config) : config(std::move(config)) {}
 
-  void add_client(const std::shared_ptr<IL3EventListener> &client) {
+  void add_client(IL3EventListener *client) {
+    if (!client)
+      throw std::runtime_error("Client cannot be null.");
     l3_clients.emplace_back(client);
   }
+
   void init() {}
 
   void start() {
@@ -44,49 +46,70 @@ public:
       {
       case MDSource::DATABASE: {
         while (auto md_event = fetch_data_from_db()) {
-          std::visit(
-              utils::overloaded{[this](const Trade &trade) {
-                                  std::ranges::for_each(
-                                      clients, [&, this](const auto &client) {
-                                        client->on_trade(trade);
-                                      });
-                                },
-                                [this](const Order &order) {
-                                  std::ranges::for_each(
-                                      clients, [&, this](const auto &client) {
-                                        switch (order.action) {
-                                        case utils::OrderAction::ADD:
-                                          client->on_order_add(order);
-                                        case utils::OrderAction::CANCEL:
-                                          client->on_order_cancel(order);
-                                        }
-                                      });
-                                }},
-              *md_event);
+          std::visit(utils::overloaded{
+                         [this, &clients](Trade &trade) {
+                           std::ranges::for_each(
+                               clients, [&, this](const auto client) {
+                                 if (!client)
+                                   return;
+                                 trade.time +=
+                                     config.latency_model->get_feed_latency();
+                                 client->on_trade(trade);
+                               });
+                         },
+                         [this, &clients](Order &order) {
+                           std::ranges::for_each(
+                               clients, [&, this](const auto client) {
+                                 if (!client)
+                                   return;
+                                 order.time +=
+                                     config.latency_model->get_feed_latency();
+
+                                 switch (order.action) {
+                                 case utils::OrderAction::ADD:
+                                   client->on_order_add(order);
+                                 case utils::OrderAction::CANCEL:
+                                   client->on_order_cancel(order);
+                                 }
+                               });
+                         }},
+                     *md_event);
         }
         break;
       }
       case MDSource::FILE: {
         while (auto md_event = fetch_data_from_file()) {
-          std::visit(
-              utils::overloaded{[this](const Trade &trade) {
-                                  std::ranges::for_each(
-                                      clients, [&, this](const auto &client) {
-                                        client->on_trade(trade);
-                                      });
-                                },
-                                [this](const Order &order) {
-                                  std::ranges::for_each(
-                                      clients, [&, this](const auto &client) {
-                                        switch (order.action) {
-                                        case utils::OrderAction::ADD:
-                                          client->on_order_add(order);
-                                        case utils::OrderAction::CANCEL:
-                                          client->on_order_cancel(order);
-                                        }
-                                      });
-                                }},
-              *md_event);
+          std::visit(utils::overloaded{
+                         [this, &clients](Trade &trade) {
+                           std::ranges::for_each(
+                               clients, [&, this](const auto client) {
+                                 if (!client)
+                                   return;
+
+                                 trade.time +=
+                                     config.latency_model->get_feed_latency();
+
+                                 client->on_trade(trade);
+                               });
+                         },
+                         [this, &clients](Order &order) {
+                           std::ranges::for_each(
+                               clients, [&, this](const auto client) {
+                                 if (!client)
+                                   return;
+
+                                 order.time +=
+                                     config.latency_model->get_feed_latency();
+
+                                 switch (order.action) {
+                                 case utils::OrderAction::ADD:
+                                   client->on_order_add(order);
+                                 case utils::OrderAction::CANCEL:
+                                   client->on_order_cancel(order);
+                                 }
+                               });
+                         }},
+                     *md_event);
         }
         break;
       }
@@ -109,9 +132,8 @@ private:
   }
 
 private:
-  std::vector<std::shared_ptr<IL3EventListener>>
+  std::vector<IL3EventListener *>
       l3_clients; // shared_ptr is slow, can be improved later
-  HistMDContextConfig config;
-  std::shared_ptr<LatencyModel> latency_model;
+  Config config;
 };
 } // namespace market_data

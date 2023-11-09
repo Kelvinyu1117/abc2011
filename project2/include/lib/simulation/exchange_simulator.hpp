@@ -1,6 +1,7 @@
 #pragma once
 #include "lib/execution/execution_event_listener.hpp"
 #include "lib/execution/execution_report.hpp"
+#include "lib/market_data/md_event_listener.hpp"
 #include "lib/simulation/latency_model.hpp"
 #include "lib/utils/helpers.hpp"
 #include "lib/utils/orderbook.hpp"
@@ -11,7 +12,6 @@
 #include <utility>
 #include <variant>
 namespace simulation {
-struct ExchangeSimulatorConfig {};
 
 template <typename Traits> struct NewOrderEvent {
   using OrderInfo = utils::Order<Traits>;
@@ -52,8 +52,12 @@ template <typename Traits> struct CacnelOrderEvent {
  *
  * @tparam Traits
  */
-template <typename Traits> class ExchangeSimulator {
+template <typename Traits>
+class ExchangeSimulator : public market_data::IL3EventListener<Traits> {
+
+public:
   using IExecutionEventListener = execution::IExecutionEventListener<Traits>;
+  using Trade = market_data::Trade<Traits>;
   using Side = Traits::Side;
   using Size = Traits::Size;
   using OrderID = Traits::OrderID;
@@ -73,12 +77,9 @@ template <typename Traits> class ExchangeSimulator {
 
   using ExecutionInfo = execution::ExecutionReport<Traits>;
 
-public:
-  ExchangeSimulator(ExchangeSimulatorConfig &&config,
+  ExchangeSimulator(std::shared_ptr<LatencyModel> latency_model,
                     IExecutionEventListener &execution_listener)
-      : config{std::make_unique<ExchangeSimulatorConfig>(std::move(config))},
-        latency_model{std::make_unique<NoLatencyModel<Traits>>()},
-        book{std::make_unique<OrderBook>()},
+      : latency_model{latency_model}, book{std::make_unique<OrderBook>()},
         execution_listener{execution_listener} {}
   // should have some time priority queue to queue the order by time
   // priority, and trigger the matching
@@ -109,22 +110,30 @@ public:
                  event);
     }
   }
-  void on_receive_new_order(OrderInfo &order_info) {
+
+  void on_trade(const Trade &trade) override {}
+
+  void on_order_add(const OrderInfo &order) override {
+    on_receive_new_order(order);
+  }
+
+  void on_order_cancel(const OrderInfo &order) override {
+    on_receive_cancel_order(order);
+  }
+
+  void on_receive_new_order(const OrderInfo &order) {
     event_queue.emplace(NewOrderEvent{
-        order_info.time + latency_model->get_order_entry_latency(),
-        order_info});
+        order.time + latency_model->get_order_entry_latency(), order});
   }
 
-  void on_receive_amend_order(OrderInfo &order_info) {
+  void on_receive_amend_order(const OrderInfo &order) {
     event_queue.emplace(AmendOrderEvent{
-        order_info.time + latency_model->get_order_entry_latency(),
-        order_info});
+        order.time + latency_model->get_order_entry_latency(), order});
   }
 
-  void on_receive_cancel_order(OrderInfo &order_info) {
+  void on_receive_cancel_order(const OrderInfo &order) {
     event_queue.emplace(CacnelOrderEvent{
-        order_info.time + latency_model->get_order_entry_latency(),
-        order_info});
+        order.time + latency_model->get_order_entry_latency(), order});
   }
 
 private:
@@ -141,11 +150,11 @@ private:
     const auto order = order_info;
 
     if (order_info.side == Side::BID) {
-      if (book->template getNumOfLevels<Side::SELL>() == 0) {
+      if (book->template getNumOfLevels<Side::ASK>() == 0) {
         return false;
       }
 
-      auto it = book->template begin<Side::SELL>();
+      auto it = book->template begin<Side::ASK>();
       auto px = order_info.pxsz.px;
       auto amt = order_info.pxsz.sz;
 
@@ -156,7 +165,7 @@ private:
       bool is_done = false;
 
       while (!is_done && px >= it->first &&
-             it != book->template end<Side::SELL>()) {
+             it != book->template end<Side::ASK>()) {
         auto &orderQueue = it->second;
 
         bool isLevelCleared = false;
@@ -164,13 +173,13 @@ private:
           auto &front_order = orderQueue.front();
           auto front_order_id = front_order.id;
           auto front_order_px = front_order.pxsz.px;
-          auto front_order_size = front_order.pxsz.sz();
+          auto front_order_size = front_order.pxsz.sz;
           auto matched_sz = std::min(front_order_size, amt);
 
           auto fill_px = std::min(front_order_px, order_info.pxsz.px);
 
           front_order.pxsz.sz = (front_order_size - matched_sz);
-          if (front_order.pxsz.sz() == 0) {
+          if (front_order.pxsz.sz == 0) {
             orderQueue.pop();
           }
 
@@ -187,19 +196,19 @@ private:
           isLevelCleared = amt == 0;
         }
 
-        is_done = order_info.pxsz.sz() == 0;
+        is_done = order_info.pxsz.sz == 0;
         if (orderQueue.empty()) {
-          book->erase(it++);
+          book->erase<Side::ASK>(it++);
         }
 
         return is_done;
       }
     } else if (order_info.side == Side::ASK) {
-      if (book->template getNumOfLevels<Side::BUY>() == 0) {
+      if (book->template getNumOfLevels<Side::BID>() == 0) {
         return false;
       }
 
-      auto it = book->template begin<Side::BUY>();
+      auto it = book->template begin<Side::BID>();
       auto px = order_info.pxsz.px;
       auto amt = order_info.psxz.sz;
 
@@ -210,7 +219,7 @@ private:
       bool is_done = false;
 
       while (!is_done && px <= it->first &&
-             it != book->template end<Side::BUY>()) {
+             it != book->template end<Side::BID>()) {
         auto &orderQueue = it->second;
 
         bool isLevelCleared = false;
@@ -242,7 +251,7 @@ private:
         is_done = order_info.psxz.sz == 0;
 
         if (orderQueue.empty()) {
-          book->erase(it++);
+          book->erase<Side::BID>(it++);
         }
       }
 
@@ -261,11 +270,8 @@ private:
   }
 
 private:
-  std::unique_ptr<ExchangeSimulatorConfig> config;
   std::unique_ptr<OrderBook> book;
-  std::unique_ptr<LatencyModel>
-      latency_model; // it should be configured by user eventually, currently
-                     // just hardcoded
+  std::shared_ptr<LatencyModel> latency_model;
   IExecutionEventListener &execution_listener;
   PriorityEventQueue event_queue; // event Queue based on time priority
   Clock clock;

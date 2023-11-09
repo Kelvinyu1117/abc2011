@@ -3,11 +3,10 @@
 #include "lib/utils/order.hpp"
 namespace market_data {
 
-template <typename DataTraits> class IL3EventListener {
+template <typename Traits> class IL3EventListener {
 public:
-  using Trade = DataTraits::Trade;
-  using OrderInfo = utils::Order<DataTraits>;
-  using PriceBook = DataTraits::PriceBook;
+  using Trade = Trade<Traits>;
+  using OrderInfo = utils::Order<Traits>;
 
   // on receive trade data from the market update
   virtual void on_trade(const Trade &trade) = 0;
@@ -15,5 +14,7 @@ public:
   virtual void on_order_add(const OrderInfo &order) = 0;
 
   virtual void on_order_cancel(const OrderInfo &order) = 0;
+
+  virtual ~IL3EventListener() {}
 };
 } // namespace market_data

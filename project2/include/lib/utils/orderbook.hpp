@@ -30,28 +30,28 @@ private:
 template <typename DataTraits> class OrderBook {
   using Price = DataTraits::Price;
   using IntPrice = DataTraits::IntPrice;
-
-  using BidMap = DataTraits::template Map<Price, OrderQueue, std::greater<>>;
-  using AskMap = DataTraits::template Map<Price, OrderQueue>;
   using Order = utils::Order<DataTraits>;
 
+  using OrderQueue = DataTraits::template Queue<Order>;
+  using BidMap = DataTraits::template Map<Price, OrderQueue, std::greater<>>;
+  using AskMap = DataTraits::template Map<Price, OrderQueue>;
+
 public:
-  using BidSideIterator = BidMap::iterator;
-  using AskSideIterator = AskMap::iterator;
+  using Iterator = BidMap::iterator;
 
   void insert(const Order &order) {
     if (order.side == Side::BID) {
-      bids[to_int_px(order.pxsz.px)].push(order);
+      bids[to_int_px(order.pxsz.px)].push_back(order);
     } else {
-      asks[to_int_px(order.pxsz.px)].push(order);
+      asks[to_int_px(order.pxsz.px)].push_back(order);
     }
   }
 
   void insert(const Order &&order) {
     if (order.side == Side::BID) {
-      bids[to_int_px(order.pxsz.px)].push(std::move(order));
+      bids[to_int_px(order.pxsz.px)].push_back(std::move(order));
     } else {
-      asks[to_int_px(order.pxsz.px)].push(std::move(order));
+      asks[to_int_px(order.pxsz.px)].push_back(std::move(order));
     }
   }
 
@@ -86,8 +86,14 @@ public:
       return asks.size();
     }
   }
-  BidSideIterator erase(const BidSideIterator &it);
-  AskSideIterator erase(const AskSideIterator &it);
+
+  template <Side side> Iterator erase(const Iterator &it) {
+    if constexpr (side == Side::BID) {
+      return bids.erase(it);
+    } else {
+      return asks.erase(it);
+    }
+  }
 
 private:
   // multiply the floating point px by a factor(10^3) to convert it to be a

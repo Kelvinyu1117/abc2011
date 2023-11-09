@@ -5,9 +5,9 @@
 #include <limits>
 #include <optional>
 namespace market_data {
-template <typename DataTraits> struct PriceBook {
-  using NanoTimestamp = DataTraits::NanoTimestamp;
-  using Instrument = DataTraits::Instrument;
+template <typename Traits> struct PriceBook {
+  using NanoTimestamp = Traits::NanoTimestamp;
+  using Instrument = Traits::Instrument;
 
   constexpr static size_t DEFAULT_BOOK_LEVEL = 20;
 
@@ -15,18 +15,18 @@ template <typename DataTraits> struct PriceBook {
   uint64_t bid_levels;
   uint64_t ask_levels;
   Instrument instrument;
-  utils::PriceSize<DataTraits> bids[DEFAULT_BOOK_LEVEL];
-  utils::PriceSize<DataTraits> asks[DEFAULT_BOOK_LEVEL];
+  utils::PriceSize<Traits> bids[DEFAULT_BOOK_LEVEL];
+  utils::PriceSize<Traits> asks[DEFAULT_BOOK_LEVEL];
 };
 
-template <typename DataTraits> struct Trade {
-  using NanoTimestamp = DataTraits::NanoTimestamp;
-  using Instrument = DataTraits::Instrument;
-  using Side = DataTraits::Side;
+template <typename Traits> struct Trade {
+  using NanoTimestamp = Traits::NanoTimestamp;
+  using Instrument = Traits::Instrument;
+  using Side = Traits::Side;
 
   NanoTimestamp time;
   Instrument instrument;
-  utils::PriceSize<DataTraits> pxsz;
+  utils::PriceSize<Traits> pxsz;
   std::optional<Side> side; // some market data may not have side information
 };
 

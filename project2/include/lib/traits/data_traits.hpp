@@ -14,6 +14,7 @@ struct DataTraits {
   using Price = double; // use double for now, maybe should use integer type
   using IntPrice = uint64_t;
   using Size = uint64_t;
+
   using String =
       std::string; // std::string is slow, can be replaced by something better
 
@@ -21,6 +22,8 @@ struct DataTraits {
                                   // by something better
   using Instrument = symbology::Instrument<String>;
   using Side = utils::Side;
+
+  using OrderID = String;
 
   template <typename K, typename V, typename Comparator = std::less<>>
   using Map = std::map<K, V, Comparator>; // std::map is slow, can

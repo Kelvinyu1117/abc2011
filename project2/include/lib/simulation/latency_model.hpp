@@ -18,6 +18,8 @@ public:
   virtual NanoTimestamp get_order_entry_latency() = 0;
 
   virtual NanoTimestamp get_order_response_latency() = 0;
+
+  virtual ~LatencyModel() {}
 };
 
 template <typename DataTraits>

@@ -10,5 +10,6 @@ enum class Exchange : uint32_t {
   TW_TWSE,
   JP_TSE,
   US_CME,
+  FAKE_EXCHANGE
 };
 }

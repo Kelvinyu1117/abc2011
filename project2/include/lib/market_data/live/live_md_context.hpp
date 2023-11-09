@@ -30,9 +30,7 @@ public:
   explicit LiveMDContext(LiveMDContextConfig config)
       : config(std::move(config)) {}
 
-  void add_client(const std::shared_ptr<IL3EventListener> &client) {
-    l3_clients.emplace_back(client);
-  }
+  void add_client(IL3EventListener *client) { l3_clients.emplace_back(client); }
 
   void init() {}
 
@@ -42,12 +40,12 @@ public:
       while (auto md_event = read_event_from_network()) {
         std::visit(
             utils::overloaded{
-                [this](const Trade &trade) {
+                [this, &clients](const Trade &trade) {
                   std::ranges::for_each(clients, [&, this](const auto &client) {
                     client->on_trade(trade);
                   });
                 },
-                [this](const Order &order) {
+                [this, &clients](const Order &order) {
                   std::ranges::for_each(clients, [&, this](const auto &client) {
                     switch (order.action) {
                     case utils::OrderAction::ADD:
@@ -72,7 +70,7 @@ private:
   }
 
 private:
-  std::vector<std::shared_ptr<IL3EventListener>> l3_clients;
+  std::vector<IL3EventListener *> l3_clients;
   LiveMDContextConfig config;
   // expect some member variables for network communication...
 };

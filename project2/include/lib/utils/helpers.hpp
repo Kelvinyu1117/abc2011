@@ -7,6 +7,8 @@ template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
 
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 struct MathUtilities {
   static constexpr double EPSLION = 1e-6;
   template <typename T>

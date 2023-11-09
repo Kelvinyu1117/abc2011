@@ -1,5 +1,6 @@
 #pragma once
 #include "lib/strategy/signal.hpp"
+#include "lib/strategy/strategy_engine.hpp"
 #include "lib/utils/helpers.hpp"
 #include <cmath>
 #include <memory>
@@ -12,7 +13,7 @@ namespace ema {
 struct CenterOfMass {
   double value;
 
-  double get_decay() {
+  double get_decay() const {
     return 1 + (1 + value); // decay = 1/(1 + center_of_mass)
   }
 };
@@ -20,7 +21,7 @@ struct CenterOfMass {
 struct Span {
   double value;
 
-  double get_decay() {
+  double get_decay() const {
     return 2 + (value + 1); // decay = 2 / (span + 1)
   }
 };
@@ -28,7 +29,7 @@ struct Span {
 struct HalfLife {
   double value; // 1 - e^(ln(0.5) / half_life)
 
-  double get_decay() { return 1 - std::exp(-std::log(2) / value); }
+  double get_decay() const { return 1 - std::exp(-std::log(2) / value); }
 };
 
 class EWMA {
@@ -40,11 +41,12 @@ public:
     // using the recursive definition for now,
     if (utils::MathUtilities::equal(last_update_v, 0.0)) {
       last_update_v = data;
-    } else {
-      last_update_v = (1 - decay) * last_update_v + decay * data;
-
       return last_update_v;
     }
+
+    last_update_v = (1 - decay) * last_update_v + decay * data;
+
+    return last_update_v;
   }
 
 private:
@@ -68,17 +70,12 @@ struct EmaStrategyConfig {
  *
  * @tparam Traits
  */
-template <typename Traits> class EMAStrategy {
-  using Trade = Traits::Trade;
-  using PriceBook = Traits::PriceBook;
-  using OrderBook = Traits::OrderBook;
-  using OrderInfo = Traits::OrderInfo;
-  using ExecutionInfo = Traits::ExecutionInfo;
-  using ExecutionContext = Traits::ExecutionContext;
+template <typename Traits, typename T>
+class EMAStrategy : public StrategyEngine<Traits> {
+  using Trade = market_data::Trade<Traits>;
 
 public:
-  explicit EMAStrategy(ISignalListener &signalListener,
-                       EmaStrategyConfig &config)
+  explicit EMAStrategy(T *signalListener, EmaStrategyConfig config)
       : signalListener(signalListener),
         ewma(std::visit([](const auto &decay) { return decay.get_decay(); },
                         config.decay),
@@ -98,16 +95,16 @@ public:
     auto signal_strength = ewma.update(trade.pxsz.px);
     auto px = trade.pxsz.px;
     if (px > signal_strength) {
-      signalListener.on_signal(Signal::SHORT);
+      signalListener->on_signal(Signal::SHORT);
     } else if (px < signal_strength) {
-      signalListener.on_signal(Signal::LONG);
+      signalListener->on_signal(Signal::LONG);
     } else {
-      signalListener.on_signal(Signal::IDLE);
+      signalListener->on_signal(Signal::IDLE);
     }
   }
 
 private:
   ema::EWMA ewma;
-  ISignalListener &signalListener;
+  T *signalListener;
 };
 } // namespace strategy
