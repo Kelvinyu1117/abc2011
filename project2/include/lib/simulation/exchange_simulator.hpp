@@ -274,7 +274,7 @@ private:
   bool try_amend(NanoTimestamp event_time, OrderInfo &order_info) {
     // find the order, and remove from the queue, update the order and insert
     // back the queue (lose the priority)
-    if (try_cancel(order_info)) {
+    if (try_cancel(event_time, order_info)) {
       if (!try_match(event_time, order_info)) {
         book->insert(order_info);
       }
@@ -289,20 +289,29 @@ private:
     auto impl = [this]<Side side>(OrderInfo &order_info) {
       if (auto it = book->template search<side>(order_info.pxsz.px);
           it != book->template end<side>()) {
+
         auto &queue = it->second.internal();
 
-        return std::ranges::remove_if(queue, [&order_info](const auto &order) {
-          return order.id == order_info;
-        });
+        if (auto target_order =
+                std::ranges::find_if(queue,
+                                     [&order_info](const auto &order) {
+                                       return order.id == order_info.id;
+                                     });
+            target_order != queue.end()) {
+          queue.erase(target_order);
+          return true;
+        }
       }
+
+      return false;
     };
 
     if (order_info.side == Side::BID) {
-      return impl<Side::BID>(order_info);
+      return impl.template operator()<Side::BID>(order_info);
     }
 
     else if (order_info.side == Side::ASK) {
-      return impl<Side::ASK>(order_info);
+      return impl.template operator()<Side::ASK>(order_info);
     }
 
     return false;
