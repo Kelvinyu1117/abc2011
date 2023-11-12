@@ -3,11 +3,12 @@
 #include <cmath>
 #include <type_traits>
 namespace utils {
+// helper type for the visitor #4
 template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 struct MathUtilities {
   static constexpr double EPSLION = 1e-6;

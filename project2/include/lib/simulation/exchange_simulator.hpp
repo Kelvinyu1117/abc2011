@@ -6,6 +6,7 @@
 #include "lib/utils/helpers.hpp"
 #include "lib/utils/orderbook.hpp"
 #include <atomic>
+#include <bits/ranges_algo.h>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -17,8 +18,6 @@ template <typename Traits> struct NewOrderEvent {
   using OrderInfo = utils::Order<Traits>;
   using NanoTimestamp = Traits::NanoTimestamp;
 
-  bool operator<(const NewOrderEvent<Traits> &rhs) { return time < rhs.time; }
-
   NanoTimestamp time;
   OrderInfo order_info;
 };
@@ -27,8 +26,6 @@ template <typename Traits> struct AmendOrderEvent {
   using OrderInfo = utils::Order<Traits>;
   using OrderID = Traits::OrderID;
   using NanoTimestamp = Traits::NanoTimestamp;
-
-  bool operator<(const AmendOrderEvent<Traits> &rhs) { return time < rhs.time; }
 
   NanoTimestamp time;
   OrderInfo order_info;
@@ -39,13 +36,24 @@ template <typename Traits> struct CacnelOrderEvent {
   using OrderID = Traits::OrderID;
   using NanoTimestamp = Traits::NanoTimestamp;
 
-  bool operator<(const CacnelOrderEvent<Traits> &rhs) {
-    return time < rhs.time;
-  }
-
   NanoTimestamp time;
   OrderInfo order_info;
 };
+
+template <typename Traits>
+using OrderEvent = std::variant<NewOrderEvent<Traits>, AmendOrderEvent<Traits>,
+                                CacnelOrderEvent<Traits>>;
+
+template <typename Traits>
+inline bool operator<(const OrderEvent<Traits> &a,
+                      const OrderEvent<Traits> &b) {
+
+  return std::visit(
+      [&b](auto &a1) {
+        return std::visit([&a1](auto &b1) { return a1.time < b1.time; }, b);
+      },
+      a);
+}
 
 /**
  * @brief It is really for demo the idea for exchange simulator
@@ -68,7 +76,8 @@ public:
   using NewOrderEvent = NewOrderEvent<Traits>;
   using AmendOrderEvent = AmendOrderEvent<Traits>;
   using CacnelOrderEvent = CacnelOrderEvent<Traits>;
-  using Event = std::variant<NewOrderEvent, AmendOrderEvent, CacnelOrderEvent>;
+  using Event = OrderEvent<Traits>;
+
   using Clock =
       std::atomic_uint64_t; // using a atomic variable to simulate the exchange
                             // clock, it should be monotonically increasing
@@ -84,8 +93,8 @@ public:
   // should have some time priority queue to queue the order by time
   // priority, and trigger the matching
 
-  void process_event() // this is only use in demo ane it will be triggered by
-                       // send_order from the executionContext (not consider
+  void process_event() // this is only use in the demo and it will be triggered
+                       // by send_order from the executionContext (not consider
                        // thread-safety), in practice it should be a busy loop
                        // in a independent thread keep polling the internal
                        // event queue (lock free)
@@ -94,20 +103,21 @@ public:
       auto event = event_queue.top();
       event_queue.pop();
 
-      std::visit(utils::overloaded{
-                     [this](NewOrderEvent &event) {
-                       execution_listener.on_send_order(book, event.order_info);
-                       if (!try_match(event.time, event.order_info)) {
-                         book->insert(event.order_info);
-                       }
-                     },
-                     [this](AmendOrderEvent &event) {
-                       try_amend(event.time, event.order_info);
-                     },
-                     [this](CacnelOrderEvent &event) {
-                       try_cancel(event.time, event.order_info);
-                     }},
-                 event);
+      std::visit(
+          utils::overloaded{[this](NewOrderEvent &event) {
+                              execution_listener.on_send_order(
+                                  *book, event.order_info);
+                              if (!try_match(event.time, event.order_info)) {
+                                book->insert(event.order_info);
+                              }
+                            },
+                            [this](AmendOrderEvent &event) {
+                              try_amend(event.time, event.order_info);
+                            },
+                            [this](CacnelOrderEvent &event) {
+                              try_cancel(event.time, event.order_info);
+                            }},
+          event);
     }
   }
 
@@ -122,18 +132,18 @@ public:
   }
 
   void on_receive_new_order(const OrderInfo &order) {
-    event_queue.emplace(NewOrderEvent{
-        order.time + latency_model->get_order_entry_latency(), order});
+    event_queue.push(Event{NewOrderEvent{
+        order.time + latency_model->get_order_entry_latency(), order}});
   }
 
   void on_receive_amend_order(const OrderInfo &order) {
-    event_queue.emplace(AmendOrderEvent{
-        order.time + latency_model->get_order_entry_latency(), order});
+    event_queue.push(Event{AmendOrderEvent{
+        order.time + latency_model->get_order_entry_latency(), order}});
   }
 
   void on_receive_cancel_order(const OrderInfo &order) {
-    event_queue.emplace(CacnelOrderEvent{
-        order.time + latency_model->get_order_entry_latency(), order});
+    event_queue.push(Event{CacnelOrderEvent{
+        order.time + latency_model->get_order_entry_latency(), order}});
   }
 
 private:
@@ -184,7 +194,7 @@ private:
           }
 
           on_execution(
-              book, order,
+              *book, order,
               ExecutionInfo{get_current_time(event_time) +
                                 latency_model->get_order_response_latency(),
                             order.id, Side::BID, order.instrument, fill_px,
@@ -198,7 +208,7 @@ private:
 
         is_done = order_info.pxsz.sz == 0;
         if (orderQueue.empty()) {
-          book->erase<Side::ASK>(it++);
+          book->template erase<Side::ASK>(it++);
         }
 
         return is_done;
@@ -210,7 +220,7 @@ private:
 
       auto it = book->template begin<Side::BID>();
       auto px = order_info.pxsz.px;
-      auto amt = order_info.psxz.sz;
+      auto amt = order_info.pxsz.sz;
 
       if (px > it->first) {
         return false;
@@ -227,46 +237,75 @@ private:
           auto &front_order = orderQueue.front();
           auto front_order_id = front_order.id;
           auto front_order_px = front_order.pxsz.px;
-          auto front_order_size = front_order.psxz.sz;
+          auto front_order_size = front_order.pxsz.sz;
           auto matched_sz = std::min(front_order_size, amt);
           auto fill_px = std::min(front_order_px, order_info.pxsz.px);
 
           front_order.pxsz.sz = front_order_size - matched_sz;
-          if (front_order.psxz.sz == 0) {
+          if (front_order.pxsz.sz == 0) {
             orderQueue.pop();
           }
 
           on_execution(
-              book, order,
+              *book, order,
               ExecutionInfo{get_current_time(event_time) +
                                 latency_model->get_order_response_latency(),
                             order.id, Side::ASK, order.instrument, fill_px,
                             matched_sz});
-          amt = std::max(static_cast<Size>(0), amt - matched_sz);
 
-          order_info.setQuantity(amt);
+          amt = std::max(static_cast<Size>(0), amt - matched_sz);
+          order_info.pxsz.sz = amt;
           isLevelCleared = amt == 0;
         }
 
-        is_done = order_info.psxz.sz == 0;
+        is_done = order_info.pxsz.sz == 0;
 
         if (orderQueue.empty()) {
-          book->erase<Side::BID>(it++);
+          book->template erase<Side::BID>(it++);
         }
       }
 
       return is_done;
     }
+
+    return false;
   }
 
   bool try_amend(NanoTimestamp event_time, OrderInfo &order_info) {
     // find the order, and remove from the queue, update the order and insert
     // back the queue (lose the priority)
+    if (try_cancel(order_info)) {
+      if (!try_match(event_time, order_info)) {
+        book->insert(order_info);
+      }
+    }
+    return false;
   }
 
   bool try_cancel(NanoTimestamp event_time, OrderInfo &order_info) {
     // find and remove the order from the queue, assume the order must be in, in
     // reality, it should throw out a cancel reject to the client side.
+
+    auto impl = [this]<Side side>(OrderInfo &order_info) {
+      if (auto it = book->template search<side>(order_info.pxsz.px);
+          it != book->template end<side>()) {
+        auto &queue = it->second.internal();
+
+        return std::ranges::remove_if(queue, [&order_info](const auto &order) {
+          return order.id == order_info;
+        });
+      }
+    };
+
+    if (order_info.side == Side::BID) {
+      return impl<Side::BID>(order_info);
+    }
+
+    else if (order_info.side == Side::ASK) {
+      return impl<Side::ASK>(order_info);
+    }
+
+    return false;
   }
 
 private:
@@ -276,4 +315,5 @@ private:
   PriorityEventQueue event_queue; // event Queue based on time priority
   Clock clock;
 };
+
 } // namespace simulation
